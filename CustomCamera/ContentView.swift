@@ -11,77 +11,96 @@ import AVFoundation
 struct ContentView: View {
     // プロパティが変更されるとビューを自動的に更新
     @ObservedObject private var cameraManager = CameraManager()
+    
+    @State private var showingPhotoLibrary = false
     var body: some View {
-        VStack {
-            // カメラのビュー
-            // trueの場合CameraPreviewビューを表示
-            if cameraManager.isCameraReady {
-                CameraPreview(session: cameraManager.session)
-                    .edgesIgnoringSafeArea(.all)
-            } else {
-                Text("カメラを設定中...")
-            }
-            HStack{
-                Spacer()
-                Image(systemName: "option")
-            }
-            .padding()
-            
-            Spacer()
-            
-            HStack{
-                Spacer()
-                
-                Image(systemName: "photo.artframe")
-                    .foregroundColor(.black)
-                    .padding(8)
-                    .background(Color.white)
-                    .clipShape(Circle())
-                    .frame(width: 50, height: 50)
+        NavigationView{
+            VStack {
+                // カメラのビュー
+                // trueの場合CameraPreviewビューを表示
+                if cameraManager.isCameraReady {
+                    CameraPreview(session: cameraManager.session)
+                        .edgesIgnoringSafeArea(.all)
+                } else {
+                    Text("カメラを設定中...")
+                }
                 
                 Spacer()
                 
-                Button(action: {
-                    cameraManager.takePhoto()
-                }, label: {
-                    ZStack{
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 65,height: 65)
-                        // 周りを囲おうデザイン
-                        Circle()
-                            .stroke(Color.white,lineWidth: 2)
-                            .frame(width: 75,height: 75)
+                HStack{
+                    Spacer()
+                    
+                    // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
+                    if let lastPhoto = cameraManager.lastPhoto {
+                        Image(uiImage: lastPhoto)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 50, height: 70) // 画像のサイズを小さく調整
+                            .padding(4) // 余白を少なくする
+                            .background(Color.black)
+                    } else {
+                        Image(systemName: "photo.artframe")
+                            .foregroundColor(.black)
+                            .padding(8)
+                            .background(Color.white)
+                            .clipShape(Circle())
+                            .frame(width: 50, height: 50)
                     }
-                })
-                
-                Spacer()
-                
-                Button(action: {
-                    cameraManager.switchCamera()
-                },label: {
-                    Image(systemName: "arrow.triangle.2.circlepath.camera")
-                        .foregroundColor(.black)
-                        .padding(8)
-                        .background(Color.white)
-                        .clipShape(Circle())
-                        .frame(width: 50, height: 50)
-                })
-                
-                Spacer()
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        cameraManager.takePhoto()
+                    }, label: {
+                        ZStack{
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 65,height: 65)
+                            // 周りを囲おうデザイン
+                            Circle()
+                                .stroke(Color.white,lineWidth: 2)
+                                .frame(width: 75,height: 75)
+                        }
+                    })
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        cameraManager.switchCamera()
+                    },label: {
+                        Image(systemName: "arrow.triangle.2.circlepath.camera")
+                            .foregroundColor(.black)
+                            .padding(8)
+                            .background(Color.white)
+                            .clipShape(Circle())
+                            .frame(width: 50, height: 50)
+                    })
+                    
+                    Spacer()
+                    
+                }
+                .frame(height: 120)
+                .background(Color.black)
                 
             }
-            .frame(height: 120)
-            .background(Color.black)
-        }
-        // 真っ先に実行される
-        .onAppear {
-            cameraManager.setup()
-        }
-        // 画面から消える直前に実行される
-        // 不要にカメラが動作し続けることを防ぐため
-        .onDisappear {
-            cameraManager.stopSession()
+            // 真っ先に実行される
+            .onAppear {
+                cameraManager.setup()
+            }
+            // 画面から消える直前に実行される
+            // 不要にカメラが動作し続けることを防ぐため
+            .onDisappear {
+                cameraManager.stopSession()
+            }
+            // 戻る時にカメラのセッティングでUIの遅延が起きるから注意
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink(destination: SettingView()) {
+                        Image(systemName: "gear")
+                            .foregroundColor(.white)
+                    }
+                }
+            }
         }
     }
 }
@@ -98,6 +117,10 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
     @Published private(set) var session = AVCaptureSession()
     // 写真を撮影するための出力
     private let photoOutput = AVCapturePhotoOutput()
+    // 最後の写真を表示するための値
+    @Published var lastPhoto: UIImage?
+    // 今まで撮った写真をまとめて表示させるため
+    @Published var photos: [UIImage] = []
     
     // カメラの設定を行う
     func setup(){
@@ -189,11 +212,19 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         
         // 撮影された写真から画像データを取り出します
         guard let imageData = photo.fileDataRepresentation() else { return }
+        
         // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
         if let image = UIImage(data: imageData) {
+            // 最後の写真に代入
+            self.lastPhoto = image
             // 撮影した写真をフォトライブラリに保存します
             UIImageWriteToSavedPhotosAlbum(image, self, #selector(image(_:didFinishSavingWithError:contextInfo:)), nil)
+            // 撮影した写真配列に追加
+            DispatchQueue.main.async {
+                self.photos.append(image)
+            }
         }
+        
     }
     // 写真の保存完了時に呼ばれるメソッド
     @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {

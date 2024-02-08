@@ -7,9 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		476470BE2B6E178C00ED6167 /* CameraTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 476470BD2B6E178C00ED6167 /* CameraTextView.swift */; };
-		478261612B7116390010E3E5 /* SuccessCumera.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478261602B7116390010E3E5 /* SuccessCumera.swift */; };
-		478261632B725B720010E3E5 /* CameraMyMake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478261622B725B720010E3E5 /* CameraMyMake.swift */; };
+		478261652B74B7A10010E3E5 /* PhotoLIbraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478261642B74B7A10010E3E5 /* PhotoLIbraryView.swift */; };
+		478261672B74C4BA0010E3E5 /* SettingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478261662B74C4BA0010E3E5 /* SettingView.swift */; };
 		47E5CC812B60B46F0011A921 /* CustomCameraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E5CC802B60B46F0011A921 /* CustomCameraApp.swift */; };
 		47E5CC832B60B46F0011A921 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E5CC822B60B46F0011A921 /* ContentView.swift */; };
 		47E5CC852B60B4710011A921 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 47E5CC842B60B4710011A921 /* Assets.xcassets */; };
@@ -17,9 +16,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		476470BD2B6E178C00ED6167 /* CameraTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraTextView.swift; sourceTree = "<group>"; };
-		478261602B7116390010E3E5 /* SuccessCumera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuccessCumera.swift; sourceTree = "<group>"; };
-		478261622B725B720010E3E5 /* CameraMyMake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraMyMake.swift; sourceTree = "<group>"; };
+		478261642B74B7A10010E3E5 /* PhotoLIbraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLIbraryView.swift; sourceTree = "<group>"; };
+		478261662B74C4BA0010E3E5 /* SettingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingView.swift; sourceTree = "<group>"; };
 		47E5CC7D2B60B46F0011A921 /* CustomCamera.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CustomCamera.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		47E5CC802B60B46F0011A921 /* CustomCameraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomCameraApp.swift; sourceTree = "<group>"; };
 		47E5CC822B60B46F0011A921 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -59,11 +57,10 @@
 			children = (
 				47E5CC802B60B46F0011A921 /* CustomCameraApp.swift */,
 				47E5CC822B60B46F0011A921 /* ContentView.swift */,
-				476470BD2B6E178C00ED6167 /* CameraTextView.swift */,
-				478261602B7116390010E3E5 /* SuccessCumera.swift */,
+				478261642B74B7A10010E3E5 /* PhotoLIbraryView.swift */,
+				478261662B74C4BA0010E3E5 /* SettingView.swift */,
 				47E5CC842B60B4710011A921 /* Assets.xcassets */,
 				47E5CC862B60B4710011A921 /* Preview Content */,
-				478261622B725B720010E3E5 /* CameraMyMake.swift */,
 			);
 			path = CustomCamera;
 			sourceTree = "<group>";
@@ -146,11 +143,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				478261612B7116390010E3E5 /* SuccessCumera.swift in Sources */,
 				47E5CC832B60B46F0011A921 /* ContentView.swift in Sources */,
+				478261672B74C4BA0010E3E5 /* SettingView.swift in Sources */,
 				47E5CC812B60B46F0011A921 /* CustomCameraApp.swift in Sources */,
-				478261632B725B720010E3E5 /* CameraMyMake.swift in Sources */,
-				476470BE2B6E178C00ED6167 /* CameraTextView.swift in Sources */,
+				478261652B74B7A10010E3E5 /* PhotoLIbraryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -209,7 +205,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -266,7 +262,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
