@@ -31,13 +31,16 @@ struct ContentView: View {
                     Spacer()
                     
                     // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
+                    // AppStorageで保存
                     if let lastPhoto = cameraManager.lastPhoto {
-                        Image(uiImage: lastPhoto)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 50, height: 70) // 画像のサイズを小さく調整
-                            .padding(4) // 余白を少なくする
-                            .background(Color.black)
+                        NavigationLink(destination: PhotoLibraryView(selectedPhoto: lastPhoto)) {
+                            Image(uiImage: lastPhoto)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 50, height: 70) // 画像のサイズを小さく調整
+                                .padding(4) // 余白を少なくする
+                                .background(Color.black)
+                        }
                     } else {
                         Image(systemName: "photo.artframe")
                             .foregroundColor(.black)
@@ -201,6 +204,7 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
     }
     
     // 写真を撮影する
+    // 写真を無音で実装
     func takePhoto() {
         // 撮影する写真に関する特定の設定（例えばフラッシュの使用、HDRの有効化など）を指定
         let settings = AVCapturePhotoSettings()
