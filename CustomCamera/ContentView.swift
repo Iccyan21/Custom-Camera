@@ -13,6 +13,12 @@ struct ContentView: View {
     @ObservedObject private var cameraManager = CameraManager()
     
     @State private var showingPhotoLibrary = false
+    // スクロールで必要
+    @State private var scale: CGFloat = 1.0 // 画像のスケール
+    @State private var sliderValue: Double = 1.0 // スライダーの値
+    
+    
+    
     var body: some View {
         NavigationView{
             VStack {
@@ -24,6 +30,30 @@ struct ContentView: View {
                 } else {
                     Text("カメラを設定中...")
                 }
+                // スクロールボタン
+                HStack{
+                    Button(action: {
+                        sliderValue = max(1.0, sliderValue - 0.1)
+                        cameraManager.setZoomLevel(CGFloat(sliderValue))
+                    }) {
+                        Image(systemName: "minus")
+                    }
+                    // CameraViewのSliderの見直し
+                    Slider(value: $sliderValue, in: 1...cameraManager.maxZoomFactor(), step: 0.1) {
+                        _ in cameraManager.setZoomLevel(CGFloat(sliderValue))
+                    }
+
+
+                    Button(action: {
+                        // 最大ズームファクターをCameraManagerから取得するように変更
+                        let maxZoomFactor = cameraManager.maxZoomFactor()
+                        sliderValue = min(maxZoomFactor, sliderValue + 0.1)
+                        cameraManager.setZoomLevel(CGFloat(sliderValue))
+                    }) {
+                        Image(systemName: "plus")
+                    }
+
+                }.padding()
                 
                 Spacer()
                 
@@ -124,6 +154,15 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
     @Published var lastPhoto: UIImage?
     // 今まで撮った写真をまとめて表示させるため
     @Published var photos: [UIImage] = []
+    // カメラデバイスへの参照を保持する
+    private var cameraDevice: AVCaptureDevice?
+    
+    // 無音の音
+    var soundPlayer = SoundPlayer()
+    
+    var audioPlayer: AVAudioPlayer?
+    
+    
     
     // カメラの設定を行う
     func setup(){
@@ -146,6 +185,8 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         guard let camera = AVCaptureDevice.default(.builtInDualWideCamera, for: .video,position: .back) else {
             fatalError("カメラが見つかりません")
         }
+        self.cameraDevice = camera
+        
         do {
             // カメラをデバイスをAVCaptureDeviceInputオブジェクトを作成
             let cameraInput = try AVCaptureDeviceInput(device: camera)
@@ -202,20 +243,63 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         // 新しい設定をコミット
         session.commitConfiguration()
     }
+    // ズームレベル
+    func setZoomLevel(_ zoomFactor: CGFloat) {
+        // カメラにデバイスがない場合は中止
+        guard let device = cameraDevice else {
+            print("Cansel")
+            return
+        }
+        do {
+            try device.lockForConfiguration()
+            
+            let newZoomFactor = min(max(zoomFactor, 1.0), device.activeFormat.videoMaxZoomFactor)
+            device.videoZoomFactor = newZoomFactor
+            
+            device.unlockForConfiguration()
+        } catch {
+            print("ズームレベルの設定中にエラーが発生しました: \(error)")
+        }
+    }
     
+    // CameraManagerのmaxZoomFactorメソッドの見直し
+    func maxZoomFactor() -> CGFloat {
+        // セーフチェック: カメラデバイスが利用可能な場合のみ値を返す
+        guard let camera = cameraDevice, camera.activeFormat.videoMaxZoomFactor > 1.0 else {
+            return 5.0 // デフォルトの最大ズームファクター
+        }
+        return camera.activeFormat.videoMaxZoomFactor
+    }
+
+    
+    // カスタムシャッター音を再生するメソッド
+    func playCustomShutterSound() {
+        guard let soundURL = Bundle.main.url(forResource: "CameraSound", withExtension: "mp3") else { return }
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
+            audioPlayer?.play()
+        } catch {
+            print("カスタムシャッター音の再生に失敗しました: \(error)")
+        }
+    }
     // 写真を撮影する
     // 写真を無音で実装
     func takePhoto() {
+        // カスタムシャッター音を再生
+        playCustomShutterSound()
         // 撮影する写真に関する特定の設定（例えばフラッシュの使用、HDRの有効化など）を指定
         let settings = AVCapturePhotoSettings()
         // 設定したsettingsを使用して写真を撮影
         photoOutput.capturePhoto(with: settings, delegate: self)
+        
     }
     // 写真が撮影され、処理が完了すると呼び出されます
-    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,error: Error?) {
         
         // 撮影された写真から画像データを取り出します
         guard let imageData = photo.fileDataRepresentation() else { return }
+        
+        
         
         // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
         if let image = UIImage(data: imageData) {
@@ -228,7 +312,6 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
                 self.photos.append(image)
             }
         }
-        
     }
     // 写真の保存完了時に呼ばれるメソッド
     @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
