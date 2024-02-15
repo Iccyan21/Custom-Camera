@@ -14,7 +14,9 @@ struct ContentView: View {
     
     @State private var showingPhotoLibrary = false
     // スクロールで必要
+    // ズームレベルを管理する変数
     @State private var scale: CGFloat = 1.0 // 画像のスケール
+    // スライダーの現在値を保持する状態変数
     @State private var sliderValue: Double = 1.0 // スライダーの値
     
     
@@ -33,17 +35,25 @@ struct ContentView: View {
                 // スクロールボタン
                 HStack{
                     Button(action: {
+                        // アクション内でsliderValueを0.1減少させただし、最小値は1.0
                         sliderValue = max(1.0, sliderValue - 0.1)
+                        // カメラのズームレベルを更新
                         cameraManager.setZoomLevel(CGFloat(sliderValue))
                     }) {
                         Image(systemName: "minus")
                     }
                     // CameraViewのSliderの見直し
+                    // 値の範囲は1からcameraManager.maxZoomFactor()までで
+                    // ステップは0.1です。スライダーの値が変更されるたびに
+                    // cameraManager.setZoomLevelを呼び出してズームレベルを更新します
+                    
                     Slider(value: $sliderValue, in: 1...cameraManager.maxZoomFactor(), step: 0.1) {
                         _ in cameraManager.setZoomLevel(CGFloat(sliderValue))
                     }
 
-
+                    // ただし、最大値はcameraManager.maxZoomFactor())
+                    // cameraManager.setZoomLevelメソッドを
+                    // 呼び出してカメラのズームレベルを更新します
                     Button(action: {
                         // 最大ズームファクターをCameraManagerから取得するように変更
                         let maxZoomFactor = cameraManager.maxZoomFactor()
@@ -251,11 +261,15 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
             return
         }
         do {
+            // カメラの設定変更のためのロック
             try device.lockForConfiguration()
-            
-            let newZoomFactor = min(max(zoomFactor, 1.0), device.activeFormat.videoMaxZoomFactor)
+            // デバイスがサポートする最大ズームファクターと5.0のうち、小さい方をmaxZoomFactorとして計算
+            let maxZoomFactor = min(device.activeFormat.videoMaxZoomFactor, 5.0)
+            // 指定されたzoomFactorが1.0以上かつデバイスがサポートする最大ズームファクター以下になるように調整し、newZoomFactorに設定します
+            let newZoomFactor = min(max(zoomFactor, 1.0), maxZoomFactor)
+
             device.videoZoomFactor = newZoomFactor
-            
+            // カメラデバイスの設定変更後にロックを解除
             device.unlockForConfiguration()
         } catch {
             print("ズームレベルの設定中にエラーが発生しました: \(error)")
@@ -263,12 +277,14 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
     }
     
     // CameraManagerのmaxZoomFactorメソッドの見直し
+    // 最大ズームファクターを取得するために使用
     func maxZoomFactor() -> CGFloat {
-        // セーフチェック: カメラデバイスが利用可能な場合のみ値を返す
-        guard let camera = cameraDevice, camera.activeFormat.videoMaxZoomFactor > 1.0 else {
-            return 5.0 // デフォルトの最大ズームファクター
+        // cameraDeviceが存在するかどうかをチェック
+        guard let camera = cameraDevice else {
+            return 5.0 // カメラデバイスが利用不可能な場合のデフォルト値
         }
-        return camera.activeFormat.videoMaxZoomFactor
+        // デバイスがサポートする最大ズームファクターと5.0のうち、小さい方を返す
+        return min(camera.activeFormat.videoMaxZoomFactor, 5.0)
     }
 
     
