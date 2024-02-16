@@ -7,6 +7,8 @@
 
 import SwiftUI
 import AVFoundation
+import PhotosUI
+import Photos
 
 struct ContentView: View {
     // プロパティが変更されるとビューを自動的に更新
@@ -19,7 +21,9 @@ struct ContentView: View {
     // スライダーの現在値を保持する状態変数
     @State private var sliderValue: Double = 1.0 // スライダーの値
     
+    @StateObject private var sharedPhotoData = SharedPhotoData()
     
+ 
     
     var body: some View {
         NavigationView{
@@ -63,7 +67,9 @@ struct ContentView: View {
                         Image(systemName: "plus")
                     }
 
-                }.padding()
+                }
+                .padding()
+                .background(Color.black)
                 
                 Spacer()
                 
@@ -71,9 +77,8 @@ struct ContentView: View {
                     Spacer()
                     
                     // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
-                    // AppStorageで保存
-                    if let lastPhoto = cameraManager.lastPhoto {
-                        NavigationLink(destination: PhotoLibraryView(selectedPhoto: lastPhoto)) {
+                    if let lastAsset = cameraManager.lastAsset, let lastPhoto = cameraManager.lastPhoto {
+                        NavigationLink(destination: PhotoLibraryView(selectedPhoto: lastPhoto, asset: lastAsset)) {
                             Image(uiImage: lastPhoto)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -171,6 +176,8 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
     var soundPlayer = SoundPlayer()
     
     var audioPlayer: AVAudioPlayer?
+    // 最新の撮影写真のPHAsset
+    @Published var lastAsset: PHAsset?
     
     
     
@@ -327,6 +334,8 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
             DispatchQueue.main.async {
                 self.photos.append(image)
             }
+        } else {
+            print("失敗しました")
         }
     }
     // 写真の保存完了時に呼ばれるメソッド
@@ -337,9 +346,26 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         } else {
             // 保存に成功した場合の処理
             print("Successfully saved photo to library")
+            let fetchOptions = PHFetchOptions()
+            fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            fetchOptions.fetchLimit = 1
+            let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+            DispatchQueue.main.async {
+                if let lastAsset = fetchResult.firstObject {
+                    self.lastAsset = lastAsset
+                    print("PHAssetの取得に成功しました")
+                } else {
+                    print("PHAssetの取得に失敗しました")
+                }
+            }
         }
     }
 }
+
+class SharedPhotoData: ObservableObject {
+    @Published var lastAsset: PHAsset?
+}
+
 
 // SwiftUIでカメラプレビューを表示するため
 struct CameraPreview: UIViewControllerRepresentable {

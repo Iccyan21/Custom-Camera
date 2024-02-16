@@ -33,6 +33,35 @@ struct SettingView: View {
                     Spacer()
                 }
                 .padding(.bottom)
+                
+                HStack{
+                    NavigationLink(destination: Text("ご意見・ご要望など")) {
+                        Text("ご意見・ご要望など")
+                        
+                        Spacer()
+                        Text("＞")
+                        
+                    }
+                }
+                
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(.gray)
+                
+                HStack{
+                    NavigationLink(destination: Text("レビューを書く")) {
+                        Text("レビューを書く")
+                        
+                        Spacer()
+                        Text("＞")
+                        
+                    }
+                }
+                
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(.gray)
+                
                 HStack{
                     NavigationLink(destination: Text("利用規約")) {
                         Text("利用規約")
@@ -62,15 +91,7 @@ struct SettingView: View {
                 Rectangle()
                     .frame(height: 1)
                     .foregroundColor(.gray)
-                HStack{
-                    NavigationLink(destination: Text("お問い合わせ")) {
-                        Text("お問い合わせ")
-                    
-                        Spacer()
-                        Text("＞")
-                  
-                    }
-                }
+               
                 
             }
             .padding(.top)
