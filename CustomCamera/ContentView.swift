@@ -77,6 +77,7 @@ struct ContentView: View {
                         // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
                         if let lastAsset = cameraManager.lastAsset, let lastPhoto = cameraManager.lastPhoto {
                             NavigationLink(destination: PhotoLibraryView(selectedPhoto: lastPhoto, asset: lastAsset)) {
+                                // 最後の写真
                                 Image(uiImage: lastPhoto)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -320,8 +321,6 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         // 撮影された写真から画像データを取り出します
         guard let imageData = photo.fileDataRepresentation() else { return }
         
-        
-        
         // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
         if let image = UIImage(data: imageData) {
             // 最後の写真に代入
@@ -344,12 +343,17 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         } else {
             // 保存に成功した場合の処理
             print("Successfully saved photo to library")
+            // PHFetchOptionsオブジェクトを作成
             let fetchOptions = PHFetchOptions()
+            // creationDateキー（作成日）で降順にソートするよう指定しており、これにより最新の写真が最初に来る
             fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-            fetchOptions.fetchLimit = 1
+            // フェッチ（取得）するアイテムの数を1に限定
+            fetchOptions.fetchLimit = 2
             let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+            // 非同期に実行するために使用
             DispatchQueue.main.async {
                 if let lastAsset = fetchResult.firstObject {
+                    // 最新の写真を取り出し、それをlastAsset
                     self.lastAsset = lastAsset
                     print("PHAssetの取得に成功しました")
                 } else {

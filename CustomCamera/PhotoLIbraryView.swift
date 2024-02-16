@@ -63,7 +63,7 @@ struct PhotoLibraryView: View {
     }
 }
 
-
+// もしかしたらこれは使えるかも
 struct AssetImageView: View {
     let asset: PHAsset
     @State private var uiImage: UIImage? = nil
@@ -108,10 +108,16 @@ struct AssetImageView: View {
 
 
 // 写真を削除する関数
+// 与えられたPHAssetをフォトライブラリから削除
 func deletePhoto(asset: PHAsset) {
+    // アプリのフォトライブラリにアクセス
+    // メソッドは、フォトライブラリに対する変更
+    // （この場合はアセットの削除）を行うために使用されます
     PHPhotoLibrary.shared().performChanges({
+        // フォトライブラリから一つまたは複数のPHAssetオブジェクトを削除するためのリクエストを作成
         PHAssetChangeRequest.deleteAssets([asset] as NSArray)
     }) { success, error in
+        // アセットの削除が成功した場合に実行
         if success {
             // 削除に成功した場合の処理
             print("写真が削除されました")
