@@ -36,100 +36,98 @@ struct ContentView: View {
                 } else {
                     Text("カメラを設定中...")
                 }
-                // スクロールボタン
-                HStack{
-                    Button(action: {
-                        // アクション内でsliderValueを0.1減少させただし、最小値は1.0
-                        sliderValue = max(1.0, sliderValue - 0.1)
-                        // カメラのズームレベルを更新
-                        cameraManager.setZoomLevel(CGFloat(sliderValue))
-                    }) {
-                        Image(systemName: "minus")
-                    }
-                    // CameraViewのSliderの見直し
-                    // 値の範囲は1からcameraManager.maxZoomFactor()までで
-                    // ステップは0.1です。スライダーの値が変更されるたびに
-                    // cameraManager.setZoomLevelを呼び出してズームレベルを更新します
-                    
-                    Slider(value: $sliderValue, in: 1...cameraManager.maxZoomFactor(), step: 0.1) {
-                        _ in cameraManager.setZoomLevel(CGFloat(sliderValue))
-                    }
-
-                    // ただし、最大値はcameraManager.maxZoomFactor())
-                    // cameraManager.setZoomLevelメソッドを
-                    // 呼び出してカメラのズームレベルを更新します
-                    Button(action: {
-                        // 最大ズームファクターをCameraManagerから取得するように変更
-                        let maxZoomFactor = cameraManager.maxZoomFactor()
-                        sliderValue = min(maxZoomFactor, sliderValue + 0.1)
-                        cameraManager.setZoomLevel(CGFloat(sliderValue))
-                    }) {
-                        Image(systemName: "plus")
-                    }
-
-                }
-                .padding()
-                .background(Color.black)
                 
-                Spacer()
                 
-                HStack{
-                    Spacer()
-                    
-                    // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
-                    if let lastAsset = cameraManager.lastAsset, let lastPhoto = cameraManager.lastPhoto {
-                        NavigationLink(destination: PhotoLibraryView(selectedPhoto: lastPhoto, asset: lastAsset)) {
-                            Image(uiImage: lastPhoto)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 50, height: 70) // 画像のサイズを小さく調整
-                                .padding(4) // 余白を少なくする
-                                .background(Color.black)
+                VStack{
+                    // スクロールボタン
+                    HStack{
+                        Button(action: {
+                            // アクション内でsliderValueを0.1減少させただし、最小値は1.0
+                            sliderValue = max(1.0, sliderValue - 0.1)
+                            // カメラのズームレベルを更新
+                            cameraManager.setZoomLevel(CGFloat(sliderValue))
+                        }) {
+                            Image(systemName: "minus")
                         }
-                    } else {
-                        Image(systemName: "photo.artframe")
-                            .foregroundColor(.black)
-                            .padding(8)
-                            .background(Color.white)
-                            .clipShape(Circle())
-                            .frame(width: 50, height: 50)
+                        // CameraViewのSliderの見直し
+                        // 値の範囲は1からcameraManager.maxZoomFactor()までで
+                        // ステップは0.1です。スライダーの値が変更されるたびに
+                        // cameraManager.setZoomLevelを呼び出してズームレベルを更新します
+                        
+                        Slider(value: $sliderValue, in: 1...cameraManager.maxZoomFactor(), step: 0.1) {
+                            _ in cameraManager.setZoomLevel(CGFloat(sliderValue))
+                        }
+                        
+                        // ただし、最大値はcameraManager.maxZoomFactor())
+                        // cameraManager.setZoomLevelメソッドを
+                        // 呼び出してカメラのズームレベルを更新します
+                        Button(action: {
+                            // 最大ズームファクターをCameraManagerから取得するように変更
+                            let maxZoomFactor = cameraManager.maxZoomFactor()
+                            sliderValue = min(maxZoomFactor, sliderValue + 0.1)
+                            cameraManager.setZoomLevel(CGFloat(sliderValue))
+                        }) {
+                            Image(systemName: "plus")
+                        }
+                        
                     }
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        cameraManager.takePhoto()
-                    }, label: {
-                        ZStack{
-                            Circle()
-                                .fill(Color.white)
-                                .frame(width: 65,height: 65)
-                            // 周りを囲おうデザイン
-                            Circle()
-                                .stroke(Color.white,lineWidth: 2)
-                                .frame(width: 75,height: 75)
+                    HStack{
+                        Spacer()
+                        
+                        // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
+                        if let lastAsset = cameraManager.lastAsset, let lastPhoto = cameraManager.lastPhoto {
+                            NavigationLink(destination: PhotoLibraryView(selectedPhoto: lastPhoto, asset: lastAsset)) {
+                                Image(uiImage: lastPhoto)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 50, height: 70) // 画像のサイズを小さく調整
+                                    .padding(4) // 余白を少なくする
+                                    .background(Color.black)
+                            }
+                        } else {
+                            Image(systemName: "photo.artframe")
+                                .foregroundColor(.black)
+                                .padding(8)
+                                .background(Color.white)
+                                .clipShape(Circle())
+                                .frame(width: 50, height: 50)
                         }
-                    })
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        cameraManager.switchCamera()
-                    },label: {
-                        Image(systemName: "arrow.triangle.2.circlepath.camera")
-                            .foregroundColor(.black)
-                            .padding(8)
-                            .background(Color.white)
-                            .clipShape(Circle())
-                            .frame(width: 50, height: 50)
-                    })
-                    
-                    Spacer()
-                    
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            cameraManager.takePhoto()
+                        }, label: {
+                            ZStack{
+                                Circle()
+                                    .fill(Color.white)
+                                    .frame(width: 65,height: 65)
+                                // 周りを囲おうデザイン
+                                Circle()
+                                    .stroke(Color.white,lineWidth: 2)
+                                    .frame(width: 75,height: 75)
+                            }
+                        })
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            cameraManager.switchCamera()
+                        },label: {
+                            Image(systemName: "arrow.triangle.2.circlepath.camera")
+                                .foregroundColor(.black)
+                                .padding(8)
+                                .background(Color.white)
+                                .clipShape(Circle())
+                                .frame(width: 50, height: 50)
+                        })
+                        
+                        Spacer()
+                        
+                    }
                 }
                 .frame(height: 120)
                 .background(Color.black)
-                
             }
             // 真っ先に実行される
             .onAppear {

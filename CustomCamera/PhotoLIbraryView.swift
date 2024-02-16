@@ -28,13 +28,10 @@ struct PhotoLibraryView: View {
                     .padding()
                 
             }
-            if let asset = asset {
-                AssetImageView(asset: asset)
-                // AssetImageViewはPHAssetから画像を読み込み、表示するビュー
-            } else {
-                Text("No Photo Available")
-            }
-                        
+            Image(uiImage: selectedPhoto) // 選択された写真を表示
+                .resizable()
+                .scaledToFill()
+            
             HStack{
                 
                 
@@ -54,7 +51,7 @@ struct PhotoLibraryView: View {
                 
                 // 写真を削除する機能
                 Button(action: {
-                        print("Hello")
+                    deletePhoto(asset: asset!)
                       }) {
                     Image(systemName: "trash.fill")
                         .imageScale(.large)
@@ -77,7 +74,7 @@ struct AssetImageView: View {
                 
                 Image(uiImage: uiImage)
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
+                    .scaledToFill()
             } else {
                 Text("Loading...")
             }
@@ -110,20 +107,22 @@ struct AssetImageView: View {
 }
 
 
+// 写真を削除する関数
 func deletePhoto(asset: PHAsset) {
     PHPhotoLibrary.shared().performChanges({
         PHAssetChangeRequest.deleteAssets([asset] as NSArray)
-    }, completionHandler: { success, error in
+    }) { success, error in
         if success {
-            // 削除成功
+            // 削除に成功した場合の処理
+            print("写真が削除されました")
             DispatchQueue.main.async {
-                // UIの更新やユーザーへの通知など
+                // 必要に応じてUIを更新
             }
         } else {
-            // 削除失敗またはエラー発生
-            print("Error: \(error?.localizedDescription ?? "Unknown error")")
+            // 削除に失敗した場合のエラー処理
+            print("写真の削除に失敗しました: \(String(describing: error))")
         }
-    })
+    }
 }
 
 
