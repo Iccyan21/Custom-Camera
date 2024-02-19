@@ -170,11 +170,12 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
     @Published var photos: [UIImage] = []
     // カメラデバイスへの参照を保持する
     private var cameraDevice: AVCaptureDevice?
+    //
+    var audioPlayer: AVAudioPlayer?
     
     // 無音の音
     var soundPlayer = SoundPlayer()
     
-    var audioPlayer: AVAudioPlayer?
     // 最新の撮影写真のPHAsset
     @Published var lastAsset: PHAsset?
     
@@ -209,10 +210,12 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
             if session.canAddInput(cameraInput){
                 session.addInput(cameraInput)
             }
+            
             // 写真を出力するプロセス
             if session.canAddOutput(photoOutput){
                 session.addOutput(photoOutput)
             }
+            
         } catch {
             fatalError("セッション中にエラーが発生しました:\(error)")
         }
@@ -292,32 +295,37 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         // デバイスがサポートする最大ズームファクターと5.0のうち、小さい方を返す
         return min(camera.activeFormat.videoMaxZoomFactor, 5.0)
     }
-
-    
     // カスタムシャッター音を再生するメソッド
     func playCustomShutterSound() {
-        guard let soundURL = Bundle.main.url(forResource: "CameraSound", withExtension: "mp3") else { return }
+        guard let soundURL = Bundle.main.url(forResource: "photoShutter2", withExtension: "mp3") else {
+            print("音声ファイルが見つかりません。")
+            return
+        }
+        
         do {
             audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
+            print("Hello")
             audioPlayer?.play()
         } catch {
-            print("カスタムシャッター音の再生に失敗しました: \(error)")
+            print("音声ファイルの再生に失敗しました: \(error)")
         }
     }
+    
     // 写真を撮影する
     // 写真を無音で実装
     func takePhoto() {
-        // カスタムシャッター音を再生
-        playCustomShutterSound()
         // 撮影する写真に関する特定の設定（例えばフラッシュの使用、HDRの有効化など）を指定
         let settings = AVCapturePhotoSettings()
         // 設定したsettingsを使用して写真を撮影
+        
         photoOutput.capturePhoto(with: settings, delegate: self)
+
         
     }
     // 写真が撮影され、処理が完了すると呼び出されます
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,error: Error?) {
         
+        AudioServicesDisposeSystemSoundID(1108)
         // 撮影された写真から画像データを取り出します
         guard let imageData = photo.fileDataRepresentation() else { return }
         

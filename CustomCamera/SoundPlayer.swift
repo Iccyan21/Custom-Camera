@@ -10,7 +10,7 @@ import AVFoundation
 
 class SoundPlayer: NSObject {
     // カメラの音データ
-    let cameraData = NSDataAsset(name: "CameraSound")!.data
+    let cameraData = NSDataAsset(name: "photoShutter2")!.data
     
     // カメラ用プレイヤーの変数
     var cameraPlayer: AVAudioPlayer!
@@ -19,12 +19,12 @@ class SoundPlayer: NSObject {
         do{
             // カメラ用のプレイヤーに音声データーを指定
             cameraPlayer = try AVAudioPlayer(data: cameraData)
-            
+            print("再生")
             // 音声再生
             cameraPlayer.play()
             
         } catch {
-            print("シンバルでエラーが発生しました")
+            print("photoShutter2でエラーが発生しました")
         }
     }
 }
