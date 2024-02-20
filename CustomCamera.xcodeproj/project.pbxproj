@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		478261652B74B7A10010E3E5 /* PhotoLIbraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478261642B74B7A10010E3E5 /* PhotoLIbraryView.swift */; };
 		478261672B74C4BA0010E3E5 /* SettingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478261662B74C4BA0010E3E5 /* SettingView.swift */; };
+		47ADCDF42B84C20000DF63DB /* UIImageExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47ADCDF32B84C20000DF63DB /* UIImageExtension.swift */; };
 		47CE5AEF2B7C860D009170FD /* SoundPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47CE5AEE2B7C860D009170FD /* SoundPlayer.swift */; };
 		47E5CC812B60B46F0011A921 /* CustomCameraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E5CC802B60B46F0011A921 /* CustomCameraApp.swift */; };
 		47E5CC832B60B46F0011A921 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E5CC822B60B46F0011A921 /* ContentView.swift */; };
@@ -19,6 +20,7 @@
 /* Begin PBXFileReference section */
 		478261642B74B7A10010E3E5 /* PhotoLIbraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLIbraryView.swift; sourceTree = "<group>"; };
 		478261662B74C4BA0010E3E5 /* SettingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingView.swift; sourceTree = "<group>"; };
+		47ADCDF32B84C20000DF63DB /* UIImageExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIImageExtension.swift; sourceTree = "<group>"; };
 		47CE5AEE2B7C860D009170FD /* SoundPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundPlayer.swift; sourceTree = "<group>"; };
 		47CE5AF02B7DB52B009170FD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		47E5CC7D2B60B46F0011A921 /* CustomCamera.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CustomCamera.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -61,6 +63,7 @@
 				47CE5AF02B7DB52B009170FD /* Info.plist */,
 				47E5CC802B60B46F0011A921 /* CustomCameraApp.swift */,
 				47E5CC822B60B46F0011A921 /* ContentView.swift */,
+				47ADCDF32B84C20000DF63DB /* UIImageExtension.swift */,
 				478261642B74B7A10010E3E5 /* PhotoLIbraryView.swift */,
 				478261662B74C4BA0010E3E5 /* SettingView.swift */,
 				47CE5AEE2B7C860D009170FD /* SoundPlayer.swift */,
@@ -153,6 +156,7 @@
 				478261672B74C4BA0010E3E5 /* SettingView.swift in Sources */,
 				47E5CC812B60B46F0011A921 /* CustomCameraApp.swift in Sources */,
 				478261652B74B7A10010E3E5 /* PhotoLIbraryView.swift in Sources */,
+				47ADCDF42B84C20000DF63DB /* UIImageExtension.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

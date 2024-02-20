@@ -21,16 +21,12 @@ struct PhotoLibraryView: View {
             
     var body: some View {
         VStack{
-            HStack{
-                Spacer()
-                
-                Text("全ての写真")
-                    .padding()
-                
-            }
+            
+     
             Image(uiImage: selectedPhoto) // 選択された写真を表示
                 .resizable()
                 .scaledToFill()
+               
             
             HStack{
                 

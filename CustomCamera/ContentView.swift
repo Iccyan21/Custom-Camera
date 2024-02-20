@@ -81,7 +81,7 @@ struct ContentView: View {
                                 Image(uiImage: lastPhoto)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
-                                    .frame(width: 50, height: 70) // 画像のサイズを小さく調整
+                                    .frame(width: 50, height: 50) // 画像のサイズを小さく調整
                                     .padding(4) // 余白を少なくする
                                     .background(Color.black)
                             }
@@ -323,14 +323,13 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         
     }
     // 写真が撮影され、処理が完了すると呼び出されます
-    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,error: Error?) {
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         
-        AudioServicesDisposeSystemSoundID(1108)
         // 撮影された写真から画像データを取り出します
         guard let imageData = photo.fileDataRepresentation() else { return }
         
         // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
-        if let image = UIImage(data: imageData) {
+        if let image = UIImage(data: imageData)?.resized() { // ここでリサイズを適用
             // 最後の写真に代入
             self.lastPhoto = image
             // 撮影した写真をフォトライブラリに保存します
@@ -340,7 +339,7 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
                 self.photos.append(image)
             }
         } else {
-            print("失敗しました")
+            print("画像のリサイズまたは保存に失敗しました")
         }
     }
     // 写真の保存完了時に呼ばれるメソッド
