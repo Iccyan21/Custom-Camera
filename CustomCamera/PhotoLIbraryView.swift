@@ -26,6 +26,7 @@ struct PhotoLibraryView: View {
             Image(uiImage: selectedPhoto) // 選択された写真を表示
                 .resizable()
                 .scaledToFill()
+                .padding(.top, 30)
                
             
             HStack{

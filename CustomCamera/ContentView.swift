@@ -23,6 +23,9 @@ struct ContentView: View {
     
     @StateObject private var sharedPhotoData = SharedPhotoData()
     
+    
+    @State private var lastPhoto: UIImage? = UIImage(named: "defaultImage")
+    
  
     
     var body: some View {
@@ -75,16 +78,10 @@ struct ContentView: View {
                         Spacer()
                         
                         // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
-                        if let lastAsset = cameraManager.lastAsset, let lastPhoto = cameraManager.lastPhoto {
-                            NavigationLink(destination: PhotoLibraryView(selectedPhoto: lastPhoto, asset: lastAsset)) {
-                                // 最後の写真
-                                Image(uiImage: lastPhoto)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 50, height: 50) // 画像のサイズを小さく調整
-                                    .padding(4) // 余白を少なくする
-                                    .background(Color.black)
-                            }
+                        if let lastPhoto = lastPhoto {
+                            Image(uiImage: lastPhoto)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
                         } else {
                             Image(systemName: "photo.artframe")
                                 .foregroundColor(.black)
@@ -133,11 +130,18 @@ struct ContentView: View {
             // 真っ先に実行される
             .onAppear {
                 cameraManager.setup()
+                cameraManager.loadLastSavedPhoto { photo in
+                    // 非同期で取得した画像でlastPhotoを更新
+                    DispatchQueue.main.async {
+                        self.lastPhoto = photo
+                    }
+                }
             }
             // 画面から消える直前に実行される
             // 不要にカメラが動作し続けることを防ぐため
             .onDisappear {
                 cameraManager.stopSession()
+                
             }
             // 戻る時にカメラのセッティングでUIの遅延が起きるから注意
             .toolbar {
@@ -323,13 +327,14 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         
     }
     // 写真が撮影され、処理が完了すると呼び出されます
-    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,error: Error?) {
         
+        AudioServicesDisposeSystemSoundID(1108)
         // 撮影された写真から画像データを取り出します
         guard let imageData = photo.fileDataRepresentation() else { return }
         
         // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
-        if let image = UIImage(data: imageData)?.resized() { // ここでリサイズを適用
+        if let image = UIImage(data: imageData) {
             // 最後の写真に代入
             self.lastPhoto = image
             // 撮影した写真をフォトライブラリに保存します
@@ -339,7 +344,26 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
                 self.photos.append(image)
             }
         } else {
-            print("画像のリサイズまたは保存に失敗しました")
+            print("失敗しました")
+        }
+    }
+    
+    func saveImageToPhotoLibrary(image: UIImage) {
+        var placeholderAssetId: String?
+        
+        // フォトライブラリへの変更リクエスト
+        PHPhotoLibrary.shared().performChanges({
+            // 写真の保存リクエスト
+            let creationRequest = PHAssetChangeRequest.creationRequestForAsset(from: image)
+            placeholderAssetId = creationRequest.placeholderForCreatedAsset?.localIdentifier
+        }) { success, error in
+            if success, let assetId = placeholderAssetId {
+                // 成功時、ローカル識別子をUserDefaultsに保存
+                UserDefaults.standard.set(assetId, forKey: "lastSavedPhotoId")
+                print("Successfully saved photo with ID: \(assetId)")
+            } else if let error = error {
+                print("Error saving photo: \(error.localizedDescription)")
+            }
         }
     }
     // 写真の保存完了時に呼ばれるメソッド
@@ -369,6 +393,36 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
             }
         }
     }
+    func loadLastSavedPhoto(completion: @escaping (UIImage?) -> Void) {
+        let defaults = UserDefaults.standard
+        
+        // UserDefaultsからローカル識別子を取得
+        guard let lastSavedPhotoId = defaults.string(forKey: "lastSavedPhotoId") else {
+            print("No saved photo ID found")
+            completion(nil)
+            return
+        }
+        
+        // ローカル識別子を使用してPHAssetを取得
+        let assets = PHAsset.fetchAssets(withLocalIdentifiers: [lastSavedPhotoId], options: nil)
+        
+        guard let asset = assets.firstObject else {
+            print("Failed to fetch last saved photo asset")
+            completion(nil)
+            return
+        }
+        
+        // PHAssetからUIImageを取得
+        let manager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.version = .current
+        options.isSynchronous = true
+        
+        manager.requestImage(for: asset, targetSize: CGSize(width: 300, height: 300), contentMode: .aspectFill, options: options) { image, _ in
+            completion(image)
+        }
+    }
+
 }
 
 class SharedPhotoData: ObservableObject {
