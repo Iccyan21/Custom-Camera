@@ -26,6 +26,8 @@ struct ContentView: View {
     
     @State private var lastPhoto: UIImage? = UIImage(named: "defaultImage")
     
+    @StateObject private var viewModel = CameraManager()
+    
  
     
     var body: some View {
@@ -78,10 +80,10 @@ struct ContentView: View {
                         Spacer()
                         
                         // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
-                        if let lastPhoto = lastPhoto {
-                            Image(uiImage: lastPhoto)
+                        if let image = viewModel.lastSavedPhoto {
+                            Image(uiImage: image)
                                 .resizable()
-                                .aspectRatio(contentMode: .fit)
+                                .scaledToFit()
                         } else {
                             Image(systemName: "photo.artframe")
                                 .foregroundColor(.black)
@@ -130,12 +132,7 @@ struct ContentView: View {
             // 真っ先に実行される
             .onAppear {
                 cameraManager.setup()
-                cameraManager.loadLastSavedPhoto { photo in
-                    // 非同期で取得した画像でlastPhotoを更新
-                    DispatchQueue.main.async {
-                        self.lastPhoto = photo
-                    }
-                }
+                viewModel.loadLastSavedPhoto()
             }
             // 画面から消える直前に実行される
             // 不要にカメラが動作し続けることを防ぐため
@@ -182,6 +179,8 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
     
     // 最新の撮影写真のPHAsset
     @Published var lastAsset: PHAsset?
+    // ラストイメージ
+    @Published var lastSavedPhoto: UIImage?
     
     
     
@@ -337,33 +336,17 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         if let image = UIImage(data: imageData) {
             // 最後の写真に代入
             self.lastPhoto = image
+            
             // 撮影した写真をフォトライブラリに保存します
-            UIImageWriteToSavedPhotosAlbum(image, self, #selector(image(_:didFinishSavingWithError:contextInfo:)), nil)
+            // UIImageWriteToSavedPhotosAlbum(image, self, #selector(image(_:didFinishSavingWithError:contextInfo:)), nil)
+            
             // 撮影した写真配列に追加
             DispatchQueue.main.async {
                 self.photos.append(image)
             }
+            saveImageToPhotoLibrary(image: image)
         } else {
             print("失敗しました")
-        }
-    }
-    
-    func saveImageToPhotoLibrary(image: UIImage) {
-        var placeholderAssetId: String?
-        
-        // フォトライブラリへの変更リクエスト
-        PHPhotoLibrary.shared().performChanges({
-            // 写真の保存リクエスト
-            let creationRequest = PHAssetChangeRequest.creationRequestForAsset(from: image)
-            placeholderAssetId = creationRequest.placeholderForCreatedAsset?.localIdentifier
-        }) { success, error in
-            if success, let assetId = placeholderAssetId {
-                // 成功時、ローカル識別子をUserDefaultsに保存
-                UserDefaults.standard.set(assetId, forKey: "lastSavedPhotoId")
-                print("Successfully saved photo with ID: \(assetId)")
-            } else if let error = error {
-                print("Error saving photo: \(error.localizedDescription)")
-            }
         }
     }
     // 写真の保存完了時に呼ばれるメソッド
@@ -393,41 +376,75 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
             }
         }
     }
-    func loadLastSavedPhoto(completion: @escaping (UIImage?) -> Void) {
-        let defaults = UserDefaults.standard
+    
+    func saveImageToPhotoLibrary(image: UIImage?) {
+        guard let image = image else { return }
+        PHPhotoLibrary.shared().performChanges({
+            PHAssetChangeRequest.creationRequestForAsset(from: image)
+        }, completionHandler: { success, error in
+            if success {
+                // 写真の保存に成功した場合の処理
+                DispatchQueue.main.async {
+                    print("成功しました")
+                    self.loadLastSavedPhoto()
+                }
+            } else {
+                print("エラーが発生しました")
+            }
+        })
+    }
+    func loadLastSavedPhoto() {
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
         
-        // UserDefaultsからローカル識別子を取得
-        guard let lastSavedPhotoId = defaults.string(forKey: "lastSavedPhotoId") else {
-            print("No saved photo ID found")
-            completion(nil)
+        guard let lastAsset = fetchResult.firstObject else {
+            self.lastSavedPhoto = nil
             return
         }
         
-        // ローカル識別子を使用してPHAssetを取得
-        let assets = PHAsset.fetchAssets(withLocalIdentifiers: [lastSavedPhotoId], options: nil)
-        
-        guard let asset = assets.firstObject else {
-            print("Failed to fetch last saved photo asset")
-            completion(nil)
-            return
-        }
-        
-        // PHAssetからUIImageを取得
-        let manager = PHImageManager.default()
         let options = PHImageRequestOptions()
-        options.version = .current
-        options.isSynchronous = true
+        options.version = .original
+        options.deliveryMode = .highQualityFormat
         
-        manager.requestImage(for: asset, targetSize: CGSize(width: 300, height: 300), contentMode: .aspectFill, options: options) { image, _ in
-            completion(image)
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
+        options.isNetworkAccessAllowed = true // iCloudから画像をダウンロードすることを許可します。
+        
+        let manager = PHImageManager.default()
+        let targetSize = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+        manager.requestImage(for: lastAsset, targetSize: targetSize, contentMode: .aspectFit, options: options) { image, info in
+            DispatchQueue.main.async {
+                guard let info = info else { return }
+                
+                if let isDegraded = info[PHImageResultIsDegradedKey as NSString] as? Bool, isDegraded {
+                    // Degraded imageは無視します。
+                    return
+                }
+                
+                if let error = info[PHImageErrorKey as NSString] as? Error {
+                    print("Error loading image: \(error)")
+                    return
+                }
+                
+                if let image = image {
+                    self.lastSavedPhoto = image
+                    print(image)
+                    print("成功しました")
+                }
+                if let image = image {
+                    self.lastSavedPhoto = image
+                    print("画像のロードに成功しました。")
+                }
+            }
         }
     }
-
 }
 
 class SharedPhotoData: ObservableObject {
     @Published var lastAsset: PHAsset?
 }
+
 
 
 // SwiftUIでカメラプレビューを表示するため

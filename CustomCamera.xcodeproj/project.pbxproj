@@ -297,7 +297,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "カメラを使用します";
 				INFOPLIST_KEY_NSContactsUsageDescription = 1.0;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "保存のため使用します";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "カメラロールのために使用します";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -331,7 +331,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "カメラを使用します";
 				INFOPLIST_KEY_NSContactsUsageDescription = 1.0;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "保存のため使用します";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "カメラロールのために使用します";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
