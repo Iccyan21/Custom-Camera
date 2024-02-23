@@ -23,13 +23,6 @@ struct ContentView: View {
     
     @StateObject private var sharedPhotoData = SharedPhotoData()
     
-    
-    @State private var lastPhoto: UIImage? = UIImage(named: "defaultImage")
-    
-    @StateObject private var viewModel = CameraManager()
-    
- 
-    
     var body: some View {
         NavigationView{
             VStack {
@@ -80,7 +73,7 @@ struct ContentView: View {
                         Spacer()
                         
                         // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
-                        if let image = viewModel.lastSavedPhoto {
+                        if let image = cameraManager.lastSavedPhoto {
                             Image(uiImage: image)
                                 .resizable()
                                 .scaledToFit()
@@ -132,7 +125,7 @@ struct ContentView: View {
             // 真っ先に実行される
             .onAppear {
                 cameraManager.setup()
-                viewModel.loadLastSavedPhoto()
+                cameraManager.loadLastSavedPhoto()
             }
             // 画面から消える直前に実行される
             // 不要にカメラが動作し続けることを防ぐため
@@ -334,22 +327,12 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         
         // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
         if let image = UIImage(data: imageData) {
-            // 最後の写真に代入
-            self.lastPhoto = image
-            
-            // 撮影した写真をフォトライブラリに保存します
-            // UIImageWriteToSavedPhotosAlbum(image, self, #selector(image(_:didFinishSavingWithError:contextInfo:)), nil)
-            
-            // 撮影した写真配列に追加
-            DispatchQueue.main.async {
-                self.photos.append(image)
-            }
             saveImageToPhotoLibrary(image: image)
         } else {
             print("失敗しました")
         }
     }
-    // 写真の保存完了時に呼ばれるメソッド
+    // 写真をフォトライブラリに保存した後に呼び出されるコールバックメソッド
     @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
         if let error = error {
             // 保存に失敗した場合の処理
@@ -357,41 +340,26 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         } else {
             // 保存に成功した場合の処理
             print("Successfully saved photo to library")
-            // PHFetchOptionsオブジェクトを作成
-            let fetchOptions = PHFetchOptions()
-            // creationDateキー（作成日）で降順にソートするよう指定しており、これにより最新の写真が最初に来る
-            fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-            // フェッチ（取得）するアイテムの数を1に限定
-            fetchOptions.fetchLimit = 2
-            let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-            // 非同期に実行するために使用
-            DispatchQueue.main.async {
-                if let lastAsset = fetchResult.firstObject {
-                    // 最新の写真を取り出し、それをlastAsset
-                    self.lastAsset = lastAsset
-                    print("PHAssetの取得に成功しました")
-                } else {
-                    print("PHAssetの取得に失敗しました")
-                }
-            }
+            // 必要に応じて、ここでViewModelの更新メソッドを呼び出す
         }
     }
     
     func saveImageToPhotoLibrary(image: UIImage?) {
         guard let image = image else { return }
+        // 画像の保存処理...
         PHPhotoLibrary.shared().performChanges({
             PHAssetChangeRequest.creationRequestForAsset(from: image)
-        }, completionHandler: { success, error in
-            if success {
-                // 写真の保存に成功した場合の処理
-                DispatchQueue.main.async {
-                    print("成功しました")
-                    self.loadLastSavedPhoto()
+        }) { success, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error saving photo to library: \(error.localizedDescription)")
+                    return
                 }
-            } else {
-                print("エラーが発生しました")
+                if success {
+                    self.loadLastSavedPhoto() // 最新の写真をロード
+                }
             }
-        })
+        }
     }
     func loadLastSavedPhoto() {
         let fetchOptions = PHFetchOptions()
@@ -400,6 +368,7 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         
         guard let lastAsset = fetchResult.firstObject else {
             self.lastSavedPhoto = nil
+            print("こんにちわ")
             return
         }
         
@@ -429,12 +398,8 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
                 
                 if let image = image {
                     self.lastSavedPhoto = image
-                    print(image)
-                    print("成功しました")
-                }
-                if let image = image {
-                    self.lastSavedPhoto = image
                     print("画像のロードに成功しました。")
+                    return
                 }
             }
         }
