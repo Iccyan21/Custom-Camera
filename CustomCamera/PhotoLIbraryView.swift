@@ -13,22 +13,22 @@ struct PhotoLibraryView: View {
     
     @State private var showShareSheet = false
     
-    @State var selectedAsset: PHAsset?
-        
     @EnvironmentObject var photoManager: PhotoManager
     
     var asset: PHAsset?
+    
+    var fetchedPhotos: [PHAsset]
+    
             
     var body: some View {
         VStack{
-            
-     
-            Image(uiImage: selectedPhoto) // 選択された写真を表示
-                .resizable()
-                .scaledToFill()
-                .padding(.top, 30)
+            // 最新の写真を表示する
+            if let latestPhoto = photoManager.fetchedPhotos.first {
+                AssetImageView(asset: latestPhoto)
+            } else {
+                Text("写真がありません")
+            }
                
-            
             HStack{
                 
                 
@@ -48,60 +48,81 @@ struct PhotoLibraryView: View {
                 
                 // 写真を削除する機能
                 Button(action: {
-                    deletePhoto(asset: asset!)
-                      }) {
+                    if let assetToDelete = photoManager.fetchedPhotos.first {
+                        deletePhoto(asset: assetToDelete)
+                        photoManager.fetchLatestPhoto() // 削除後、最新の写真リストを再フェッチ
+                    } else {
+                        print("削除する写真が見つかりません")
+                    }
+                }) {
                     Image(systemName: "trash.fill")
                         .imageScale(.large)
                         .padding()
                         .padding(.bottom,40)
+                }
+
+            }
+        }
+        .onAppear {
+            photoManager.fetchLatestPhoto()
+        }
+    }
+}
+
+
+
+struct AssetImageView: View {
+    let asset: PHAsset
+    @State private var uiImage: UIImage?
+    
+    var body: some View {
+        Group {
+            if let uiImage = uiImage {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                // 画像がまだロードされていない場合のプレースホルダー
+                Rectangle()
+                    .foregroundColor(.gray)
+            }
+        }
+        .onAppear {
+            print("AssetImageView onAppear")
+            loadUIImage(asset: asset)
+        }
+    }
+    
+    func loadUIImage(asset: PHAsset) {
+        print("ロードします")
+        let manager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.version = .original
+        options.isSynchronous = false // 非同期に設定
+        options.deliveryMode = .highQualityFormat
+        options.isNetworkAccessAllowed = true // ネットワーク経由のロードを許可
+        
+        manager.requestImage(for: asset, targetSize: PHImageManagerMaximumSize, contentMode: .aspectFit, options: options) { image, info in
+            DispatchQueue.main.async {
+                if let error = info?[PHImageErrorKey] as? Error {
+                    print("画像のロードに失敗: \(error)")
+                    return
+                }
+                if let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool, isDegraded {
+                    print("低品質の画像がロードされました。")
+                    // 低品質の画像でも一時的に表示する場合はここでセット
+                }
+                if let image = image {
+                    print("画像のロードに成功しました。サイズ: \(image.size)")
+                    self.uiImage = image
+                } else {
+                    print("画像のロードに失敗しました。imageはnilです。")
                 }
             }
         }
     }
 }
 
-// もしかしたらこれは使えるかも
-struct AssetImageView: View {
-    let asset: PHAsset
-    @State private var uiImage: UIImage? = nil
-    
-    var body: some View {
-        Group {
-            if let uiImage = uiImage {
-                
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Text("Loading...")
-            }
-        }
-        .onAppear(perform: loadAssetImage)
-    }
-    
-    private func loadAssetImage() {
-        print("Hello")
-        let manager = PHImageManager.default()
-        let options = PHImageRequestOptions()
-        options.isSynchronous = false
-        options.deliveryMode = .highQualityFormat
-        manager.requestImage(for: asset, targetSize: CGSize(width: 300, height: 300), contentMode: .aspectFit, options: options) { image, info in
-            // エラーがあればログに出力
-            if let error = info?[PHImageErrorKey] as? NSError {
-                print("画像の読み込みエラー: \(error)")
-            }
-            
-            DispatchQueue.main.async {
-                self.uiImage = image
-                if image != nil {
-                    print("画像が正しく読み込まれました")
-                } else {
-                    print("画像がnilです")
-                }
-            }
-        }
-    }
-}
 
 
 // 写真を削除する関数
@@ -131,11 +152,17 @@ func deletePhoto(asset: PHAsset) {
 
 struct PhotoLibraryView_Previews: PreviewProvider {
     static var previews: some View {
-        let photoManager = PhotoManager() // PhotoManagerのインスタンスを作成
-        let systemImage = UIImage(systemName: "photo")!
-        PhotoLibraryView(selectedPhoto: systemImage).environmentObject(photoManager) 
-        // EnvironmentObjectとして注入
-
+        // ダミーのUIImageインスタンスを作成します。
+        let dummyImage = UIImage(systemName: "photo") ?? UIImage()
+        // 空のPHAsset配列を使用します。
+        let dummyAssets = [PHAsset]()
+        
+        // PhotoManagerのインスタンスを作成します。
+        let photoManager = PhotoManager()
+        
+        // PhotoLibraryViewにダミーデータを提供してプレビューします。
+        PhotoLibraryView(selectedPhoto: dummyImage, fetchedPhotos: dummyAssets)
+            .environmentObject(photoManager)
     }
 }
 
@@ -156,6 +183,34 @@ struct ActivityViewController: UIViewControllerRepresentable {
 
 class PhotoManager: ObservableObject {
     @Published var photos: [UIImage] = []
+    
+    @Published var fetchedPhotos: [PHAsset] = []
+    
+    func fetchFirstPhotos(limit: Int = 10) {
+        print("フェッチします！")
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)] // 最初に撮った写真から
+        fetchOptions.fetchLimit = limit // 最初の10枚を取得
+        
+        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        
+        DispatchQueue.main.async {
+            self.fetchedPhotos = fetchResult.objects(at: IndexSet(0..<fetchResult.count))
+            print("取得した写真の数: \(self.fetchedPhotos.count)")
+        }
+    }
+    func fetchLatestPhoto() {
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)] // 降順に並べ替え
+        fetchOptions.fetchLimit = 1 // 最新の1枚のみを取得
+        
+        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        
+        DispatchQueue.main.async {
+            self.fetchedPhotos = fetchResult.objects(at: IndexSet(0..<fetchResult.count))
+        }
+    }
+    
     // 写真を削除するメゾット
     func deletePhoto(_ photo: PHAsset) {
         PHPhotoLibrary.shared().performChanges({

@@ -12,6 +12,7 @@ struct CustomCameraApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(PhotoManager()) // PhotoManagerを環境オブジェクトとして注入
         }
     }
 }

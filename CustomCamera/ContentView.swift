@@ -74,9 +74,11 @@ struct ContentView: View {
                         
                         // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
                         if let image = cameraManager.lastSavedPhoto {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFit()
+                            NavigationLink(destination: PhotoLibraryView(selectedPhoto: image, fetchedPhotos: cameraManager.fetchedPhotos)) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFit()
+                            }
                         } else {
                             Image(systemName: "photo.artframe")
                                 .foregroundColor(.black)
@@ -150,6 +152,8 @@ struct ContentView: View {
     ContentView()
 }
 
+
+
 // カメラセッション管理
 class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
     // private(set)で保護されているので
@@ -174,6 +178,8 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
     @Published var lastAsset: PHAsset?
     // ラストイメージ
     @Published var lastSavedPhoto: UIImage?
+    
+    @Published var fetchedPhotos: [PHAsset] = []
     
     
     
