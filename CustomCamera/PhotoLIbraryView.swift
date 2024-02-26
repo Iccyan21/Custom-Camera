@@ -80,7 +80,7 @@ struct AssetImageView: View {
             if let uiImage = uiImage {
                 Image(uiImage: uiImage)
                     .resizable()
-                    .scaledToFit()
+                    .scaledToFill()
             } else {
                 // 画像がまだロードされていない場合のプレースホルダー
                 Rectangle()

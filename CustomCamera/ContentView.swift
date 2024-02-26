@@ -32,11 +32,15 @@ struct ContentView: View {
                     CameraPreview(session: cameraManager.session)
                         .edgesIgnoringSafeArea(.all)
                 } else {
-                    Text("カメラを設定中...")
+                    Color.black.ignoresSafeArea()
                 }
+                
+                Spacer()
+                
                 
                 
                 VStack{
+                    
                     // スクロールボタン
                     HStack{
                         Button(action: {
@@ -297,6 +301,7 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         // デバイスがサポートする最大ズームファクターと5.0のうち、小さい方を返す
         return min(camera.activeFormat.videoMaxZoomFactor, 5.0)
     }
+    
     // カスタムシャッター音を再生するメソッド
     func playCustomShutterSound() {
         guard let soundURL = Bundle.main.url(forResource: "photoShutter2", withExtension: "mp3") else {

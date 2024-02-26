@@ -6,5 +6,10 @@
 	<array>
 		<dict/>
 	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIImageName</key>
+		<string>appstore</string>
+	</dict>
 </dict>
 </plist>
