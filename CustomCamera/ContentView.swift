@@ -32,7 +32,7 @@ struct ContentView: View {
                     CameraPreview(session: cameraManager.session)
                         .edgesIgnoringSafeArea(.all)
                 } else {
-                    Color.black.ignoresSafeArea()
+                    Color.black.ignoresSafeArea(.all)
                 }
                 
                 Spacer()
@@ -82,6 +82,7 @@ struct ContentView: View {
                                 Image(uiImage: image)
                                     .resizable()
                                     .scaledToFit()
+                                    .frame(width: 75, height: 75)
                             }
                         } else {
                             Image(systemName: "photo.artframe")
@@ -125,7 +126,7 @@ struct ContentView: View {
                         
                     }
                 }
-                .frame(height: 120)
+                .frame(height: 160)
                 .background(Color.black)
             }
             // 真っ先に実行される
