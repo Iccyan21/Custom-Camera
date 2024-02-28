@@ -25,6 +25,7 @@ struct PhotoLibraryView: View {
             // 最新の写真を表示する
             if let latestPhoto = photoManager.fetchedPhotos.first {
                 AssetImageView(asset: latestPhoto)
+                    .id(latestPhoto.localIdentifier) // これにより、assetが変更されるとビューが再描画される
             } else {
                 Text("写真がありません")
             }
@@ -49,8 +50,7 @@ struct PhotoLibraryView: View {
                 // 写真を削除する機能
                 Button(action: {
                     if let assetToDelete = photoManager.fetchedPhotos.first {
-                        deletePhoto(asset: assetToDelete)
-                        photoManager.fetchLatestPhoto() // 削除後、最新の写真リストを再フェッチ
+                        photoManager.deletePhoto(asset: assetToDelete)
                     } else {
                         print("削除する写真が見つかりません")
                     }
@@ -125,29 +125,6 @@ struct AssetImageView: View {
 
 
 
-// 写真を削除する関数
-// 与えられたPHAssetをフォトライブラリから削除
-func deletePhoto(asset: PHAsset) {
-    // アプリのフォトライブラリにアクセス
-    // メソッドは、フォトライブラリに対する変更
-    // （この場合はアセットの削除）を行うために使用されます
-    PHPhotoLibrary.shared().performChanges({
-        // フォトライブラリから一つまたは複数のPHAssetオブジェクトを削除するためのリクエストを作成
-        PHAssetChangeRequest.deleteAssets([asset] as NSArray)
-    }) { success, error in
-        // アセットの削除が成功した場合に実行
-        if success {
-            // 削除に成功した場合の処理
-            print("写真が削除されました")
-            DispatchQueue.main.async {
-                // 必要に応じてUIを更新
-            }
-        } else {
-            // 削除に失敗した場合のエラー処理
-            print("写真の削除に失敗しました: \(String(describing: error))")
-        }
-    }
-}
 
 
 struct PhotoLibraryView_Previews: PreviewProvider {
@@ -205,28 +182,38 @@ class PhotoManager: ObservableObject {
         fetchOptions.fetchLimit = 1 // 最新の1枚のみを取得
         
         let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-        
         DispatchQueue.main.async {
             self.fetchedPhotos = fetchResult.objects(at: IndexSet(0..<fetchResult.count))
-        }
-    }
-    
-    // 写真を削除するメゾット
-    func deletePhoto(_ photo: PHAsset) {
-        PHPhotoLibrary.shared().performChanges({
-            PHAssetChangeRequest.deleteAssets([photo] as NSArray)
-        }) { success, error in
-            if success {
-                // 削除成功
-                DispatchQueue.main.async {
-                    // UIの更新処理
-                }
-            } else {
-                // 削除失敗
-                print("削除に失敗しました: \(error?.localizedDescription ?? "")")
+            if let latestPhoto = self.fetchedPhotos.first {
+                // 最新の写真の作成日時をログに出力
+                print("最新の写真の作成日時: \(latestPhoto.creationDate ?? Date())")
             }
         }
     }
+    // 写真を削除する関数
+    // 与えられたPHAssetをフォトライブラリから削除
+    func deletePhoto(asset: PHAsset) {
+        // アプリのフォトライブラリにアクセス
+        // メソッドは、フォトライブラリに対する変更
+        // （この場合はアセットの削除）を行うために使用されます
+        PHPhotoLibrary.shared().performChanges({
+            // フォトライブラリから一つまたは複数のPHAssetオブジェクトを削除するためのリクエストを作成
+            PHAssetChangeRequest.deleteAssets([asset] as NSArray)
+        }) { success, error in
+            // アセットの削除が成功した場合に実行
+            if success {
+                // 削除に成功した場合の処理
+                print("写真が削除されました")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { // 1秒後に実行
+                    self.fetchLatestPhoto() // 最新の写真を再フェッチ
+                }
+            } else {
+                // 削除に失敗した場合のエラー処理
+                print("写真の削除に失敗しました: \(String(describing: error))")
+            }
+        }
+    }
+
 }
 
 
