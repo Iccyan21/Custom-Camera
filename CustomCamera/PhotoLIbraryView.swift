@@ -66,6 +66,7 @@ struct PhotoLibraryView: View {
         .onAppear {
             photoManager.fetchLatestPhoto()
         }
+        .navigationTitle("撮影した写真")
     }
 }
 
