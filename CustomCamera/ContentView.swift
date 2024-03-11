@@ -12,7 +12,7 @@ import Photos
 
 struct ContentView: View {
     // プロパティが変更されるとビューを自動的に更新
-    @ObservedObject private var cameraManager = CameraManager()
+    @ObservedObject private var cameraManager = CameraViewModel()
     
     @State private var showingPhotoLibrary = false
     // スクロールで必要
@@ -160,33 +160,28 @@ struct ContentView: View {
 
 
 // カメラセッション管理
-class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
+class CameraViewModel: NSObject,ObservableObject,AVCapturePhotoCaptureDelegate {
+    @Published var lastSavedPhoto: UIImage?
+    // カメラデバイスへの参照を保持する
+    private var cameraDevice: AVCaptureDevice?
+    // 写真を撮影するための出力
+    private let photoOutput = AVCapturePhotoOutput()
     // private(set)で保護されているので
     // セッションのインスタンスはこのクラス内でのみ変更
     @Published private(set) var isCameraReady = false
     @Published private(set) var session = AVCaptureSession()
-    // 写真を撮影するための出力
-    private let photoOutput = AVCapturePhotoOutput()
     // 最後の写真を表示するための値
     @Published var lastPhoto: UIImage?
     // 今まで撮った写真をまとめて表示させるため
     @Published var photos: [UIImage] = []
-    // カメラデバイスへの参照を保持する
-    private var cameraDevice: AVCaptureDevice?
+    
     //
     var audioPlayer: AVAudioPlayer?
     
-    // 無音の音
-    var soundPlayer = SoundPlayer()
-    
     // 最新の撮影写真のPHAsset
     @Published var lastAsset: PHAsset?
-    // ラストイメージ
-    @Published var lastSavedPhoto: UIImage?
     
     @Published var fetchedPhotos: [PHAsset] = []
-    
-    
     
     // カメラの設定を行う
     func setup(){
@@ -239,6 +234,74 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
             session.stopRunning()
         }
     }
+    
+    // 写真が撮影され、処理が完了すると呼び出されます
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,error: Error?) {
+        
+        AudioServicesDisposeSystemSoundID(1108)
+        // 撮影された写真から画像データを取り出します
+        guard let imageData = photo.fileDataRepresentation() else { return }
+        
+        // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
+        if let image = UIImage(data: imageData) {
+            saveImageToPhotoLibrary(image: image)
+        } else {
+            print("失敗しました")
+        }
+    }
+    // 写真をフォトライブラリに保存した後に呼び出されるコールバックメソッド
+    @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
+        if let error = error {
+            // 保存に失敗した場合の処理
+            print("Error saving photo: \(error.localizedDescription)")
+        } else {
+            // 保存に成功した場合の処理
+            print("Successfully saved photo to library")
+            // 必要に応じて、ここでViewModelの更新メソッドを呼び出す
+        }
+    }
+    // ズームレベル
+    func setZoomLevel(_ zoomFactor: CGFloat) {
+        // カメラにデバイスがない場合は中止
+        guard let device = cameraDevice else {
+            print("Cansel")
+            return
+        }
+        do {
+            // カメラの設定変更のためのロック
+            try device.lockForConfiguration()
+            // デバイスがサポートする最大ズームファクターと5.0のうち、小さい方をmaxZoomFactorとして計算
+            let maxZoomFactor = min(device.activeFormat.videoMaxZoomFactor, 5.0)
+            // 指定されたzoomFactorが1.0以上かつデバイスがサポートする最大ズームファクター以下になるように調整し、newZoomFactorに設定します
+            let newZoomFactor = min(max(zoomFactor, 1.0), maxZoomFactor)
+            
+            device.videoZoomFactor = newZoomFactor
+            // カメラデバイスの設定変更後にロックを解除
+            device.unlockForConfiguration()
+        } catch {
+            print("ズームレベルの設定中にエラーが発生しました: \(error)")
+        }
+    }
+    
+    // CameraManagerのmaxZoomFactorメソッドの見直し
+    // 最大ズームファクターを取得するために使用
+    func maxZoomFactor() -> CGFloat {
+        // cameraDeviceが存在するかどうかをチェック
+        guard let camera = cameraDevice else {
+            return 5.0 // カメラデバイスが利用不可能な場合のデフォルト値
+        }
+        // デバイスがサポートする最大ズームファクターと5.0のうち、小さい方を返す
+        return min(camera.activeFormat.videoMaxZoomFactor, 5.0)
+    }
+    // 写真を撮影する
+    // 写真を無音で実装
+    func takePhoto() {
+        // 撮影する写真に関する特定の設定（例えばフラッシュの使用、HDRの有効化など）を指定
+        let settings = AVCapturePhotoSettings()
+        // 設定したsettingsを使用して写真を撮影
+        photoOutput.capturePhoto(with: settings, delegate: self)
+    }
+    
     // カメラの内側、外側交換
     func switchCamera(){
         // セッションの設定を開始
@@ -269,93 +332,6 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         // 新しい設定をコミット
         session.commitConfiguration()
     }
-    // ズームレベル
-    func setZoomLevel(_ zoomFactor: CGFloat) {
-        // カメラにデバイスがない場合は中止
-        guard let device = cameraDevice else {
-            print("Cansel")
-            return
-        }
-        do {
-            // カメラの設定変更のためのロック
-            try device.lockForConfiguration()
-            // デバイスがサポートする最大ズームファクターと5.0のうち、小さい方をmaxZoomFactorとして計算
-            let maxZoomFactor = min(device.activeFormat.videoMaxZoomFactor, 5.0)
-            // 指定されたzoomFactorが1.0以上かつデバイスがサポートする最大ズームファクター以下になるように調整し、newZoomFactorに設定します
-            let newZoomFactor = min(max(zoomFactor, 1.0), maxZoomFactor)
-
-            device.videoZoomFactor = newZoomFactor
-            // カメラデバイスの設定変更後にロックを解除
-            device.unlockForConfiguration()
-        } catch {
-            print("ズームレベルの設定中にエラーが発生しました: \(error)")
-        }
-    }
-    
-    // CameraManagerのmaxZoomFactorメソッドの見直し
-    // 最大ズームファクターを取得するために使用
-    func maxZoomFactor() -> CGFloat {
-        // cameraDeviceが存在するかどうかをチェック
-        guard let camera = cameraDevice else {
-            return 5.0 // カメラデバイスが利用不可能な場合のデフォルト値
-        }
-        // デバイスがサポートする最大ズームファクターと5.0のうち、小さい方を返す
-        return min(camera.activeFormat.videoMaxZoomFactor, 5.0)
-    }
-    
-    // カスタムシャッター音を再生するメソッド
-    func playCustomShutterSound() {
-        guard let soundURL = Bundle.main.url(forResource: "photoShutter2", withExtension: "mp3") else {
-            print("音声ファイルが見つかりません。")
-            return
-        }
-        
-        do {
-            audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
-            print("Hello")
-            audioPlayer?.play()
-        } catch {
-            print("音声ファイルの再生に失敗しました: \(error)")
-        }
-    }
-    
-    // 写真を撮影する
-    // 写真を無音で実装
-    func takePhoto() {
-        // 撮影する写真に関する特定の設定（例えばフラッシュの使用、HDRの有効化など）を指定
-        let settings = AVCapturePhotoSettings()
-        // 設定したsettingsを使用して写真を撮影
-        
-        photoOutput.capturePhoto(with: settings, delegate: self)
-
-        
-    }
-    // 写真が撮影され、処理が完了すると呼び出されます
-    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,error: Error?) {
-        
-        AudioServicesDisposeSystemSoundID(1108)
-        // 撮影された写真から画像データを取り出します
-        guard let imageData = photo.fileDataRepresentation() else { return }
-        
-        // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
-        if let image = UIImage(data: imageData) {
-            saveImageToPhotoLibrary(image: image)
-        } else {
-            print("失敗しました")
-        }
-    }
-    // 写真をフォトライブラリに保存した後に呼び出されるコールバックメソッド
-    @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
-        if let error = error {
-            // 保存に失敗した場合の処理
-            print("Error saving photo: \(error.localizedDescription)")
-        } else {
-            // 保存に成功した場合の処理
-            print("Successfully saved photo to library")
-            // 必要に応じて、ここでViewModelの更新メソッドを呼び出す
-        }
-    }
-    
     func saveImageToPhotoLibrary(image: UIImage?) {
         guard let image = image else { return }
         // 画像の保存処理...
@@ -380,7 +356,6 @@ class CameraManager: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
         
         guard let lastAsset = fetchResult.firstObject else {
             self.lastSavedPhoto = nil
-            print("こんにちわ")
             return
         }
         
