@@ -12,7 +12,9 @@ import Photos
 
 struct ContentView: View {
     // プロパティが変更されるとビューを自動的に更新
-    @ObservedObject private var cameraManager = CameraViewModel()
+    @ObservedObject private var cameraviewmodel = CameraViewModel()
+    
+    
     
     @State private var showingPhotoLibrary = false
     // スクロールで必要
@@ -28,8 +30,8 @@ struct ContentView: View {
             VStack {
                 // カメラのビュー
                 // trueの場合CameraPreviewビューを表示
-                if cameraManager.isCameraReady {
-                    CameraPreview(session: cameraManager.session)
+                if cameraviewmodel.isCameraReady {
+                    CameraPreview(session: cameraviewmodel.session)
                         .edgesIgnoringSafeArea(.all)
                 } else {
                     Color.black.ignoresSafeArea(.all)
@@ -47,7 +49,7 @@ struct ContentView: View {
                             // アクション内でsliderValueを0.1減少させただし、最小値は1.0
                             sliderValue = max(1.0, sliderValue - 0.1)
                             // カメラのズームレベルを更新
-                            cameraManager.setZoomLevel(CGFloat(sliderValue))
+                            cameraviewmodel.setZoomLevel(CGFloat(sliderValue))
                         }) {
                             Image(systemName: "minus")
                         }
@@ -56,8 +58,8 @@ struct ContentView: View {
                         // ステップは0.1です。スライダーの値が変更されるたびに
                         // cameraManager.setZoomLevelを呼び出してズームレベルを更新します
                         
-                        Slider(value: $sliderValue, in: 1...cameraManager.maxZoomFactor(), step: 0.1) {
-                            _ in cameraManager.setZoomLevel(CGFloat(sliderValue))
+                        Slider(value: $sliderValue, in: 1...cameraviewmodel.maxZoomFactor(), step: 0.1) {
+                            _ in cameraviewmodel.setZoomLevel(CGFloat(sliderValue))
                         }
                         
                         // ただし、最大値はcameraManager.maxZoomFactor())
@@ -65,9 +67,9 @@ struct ContentView: View {
                         // 呼び出してカメラのズームレベルを更新します
                         Button(action: {
                             // 最大ズームファクターをCameraManagerから取得するように変更
-                            let maxZoomFactor = cameraManager.maxZoomFactor()
+                            let maxZoomFactor = cameraviewmodel.maxZoomFactor()
                             sliderValue = min(maxZoomFactor, sliderValue + 0.1)
-                            cameraManager.setZoomLevel(CGFloat(sliderValue))
+                            cameraviewmodel.setZoomLevel(CGFloat(sliderValue))
                         }) {
                             Image(systemName: "plus")
                         }
@@ -77,8 +79,8 @@ struct ContentView: View {
                         Spacer()
                         
                         // lastPhotoがある場合にはその画像を表示し、ない場合はデフォルトのアイコンを表示
-                        if let image = cameraManager.lastSavedPhoto {
-                            NavigationLink(destination: PhotoLibraryView(selectedPhoto: image, fetchedPhotos: cameraManager.fetchedPhotos)) {
+                        if let image = cameraviewmodel.lastSavedPhoto {
+                            NavigationLink(destination: PhotoLibraryView(selectedPhoto: image, fetchedPhotos: cameraviewmodel.fetchedPhotos)) {
                                 Image(uiImage: image)
                                     .resizable()
                                     .scaledToFit()
@@ -96,7 +98,7 @@ struct ContentView: View {
                         Spacer()
                         
                         Button(action: {
-                            cameraManager.takePhoto()
+                            cameraviewmodel.takePhoto()
                         }, label: {
                             ZStack{
                                 Circle()
@@ -112,7 +114,7 @@ struct ContentView: View {
                         Spacer()
                         
                         Button(action: {
-                            cameraManager.switchCamera()
+                            cameraviewmodel.switchCamera()
                         },label: {
                             Image(systemName: "arrow.triangle.2.circlepath.camera")
                                 .foregroundColor(.black)
@@ -131,14 +133,13 @@ struct ContentView: View {
             }
             // 真っ先に実行される
             .onAppear {
-                cameraManager.setup()
-                cameraManager.loadLastSavedPhoto()
+                cameraviewmodel.setup()
+                cameraviewmodel.loadLastPhoto()
             }
             // 画面から消える直前に実行される
             // 不要にカメラが動作し続けることを防ぐため
             .onDisappear {
-                cameraManager.stopSession()
-                
+                cameraviewmodel.stopSession()
             }
             // 戻る時にカメラのセッティングでUIの遅延が起きるから注意
             .toolbar {
@@ -160,28 +161,35 @@ struct ContentView: View {
 
 
 // カメラセッション管理
-class CameraViewModel: NSObject,ObservableObject,AVCapturePhotoCaptureDelegate {
-    @Published var lastSavedPhoto: UIImage?
-    // カメラデバイスへの参照を保持する
-    private var cameraDevice: AVCaptureDevice?
-    // 写真を撮影するための出力
-    private let photoOutput = AVCapturePhotoOutput()
+class CameraViewModel: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate {
     // private(set)で保護されているので
     // セッションのインスタンスはこのクラス内でのみ変更
     @Published private(set) var isCameraReady = false
     @Published private(set) var session = AVCaptureSession()
-    // 最後の写真を表示するための値
-    @Published var lastPhoto: UIImage?
-    // 今まで撮った写真をまとめて表示させるため
-    @Published var photos: [UIImage] = []
     
+    @Published private var photoModel = PhotoModel()
+    @Published var lastSavedPhoto: UIImage?
+    
+    override init() {
+        super.init()
+        self.lastSavedPhoto = photoModel.lastSavedPhoto
+        
+    }
+    
+    // 写真を撮影するための出力
+    private let photoOutput = AVCapturePhotoOutput()
+    
+    // カメラデバイスへの参照を保持する
+    private var cameraDevice: AVCaptureDevice?
     //
     var audioPlayer: AVAudioPlayer?
     
-    // 最新の撮影写真のPHAsset
-    @Published var lastAsset: PHAsset?
+    // 無音の音
+    var soundPlayer = SoundPlayer()
     
     @Published var fetchedPhotos: [PHAsset] = []
+    
+    
     
     // カメラの設定を行う
     func setup(){
@@ -228,6 +236,7 @@ class CameraViewModel: NSObject,ObservableObject,AVCapturePhotoCaptureDelegate {
             session.startRunning()
         }
     }
+    
     // セッション停止
     func stopSession() {
         if session.isRunning {
@@ -235,31 +244,37 @@ class CameraViewModel: NSObject,ObservableObject,AVCapturePhotoCaptureDelegate {
         }
     }
     
-    // 写真が撮影され、処理が完了すると呼び出されます
-    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,error: Error?) {
+    // カメラの内側、外側交換
+    func switchCamera(){
+        // セッションの設定を開始
+        session.beginConfiguration()
+        // 現在のカメラを入力を習得し、削除
+        guard let currentInput = session.inputs.first as? AVCaptureDeviceInput else {return}
+        session.removeInput(currentInput)
         
-        AudioServicesDisposeSystemSoundID(1108)
-        // 撮影された写真から画像データを取り出します
-        guard let imageData = photo.fileDataRepresentation() else { return }
-        
-        // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
-        if let image = UIImage(data: imageData) {
-            saveImageToPhotoLibrary(image: image)
-        } else {
-            print("失敗しました")
+        // 新しいカメラデバイスを設定
+        let newCameraPosition: AVCaptureDevice.Position = currentInput.device.position == .back ? .front : .back
+        guard let newDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: newCameraPosition) else {
+            print("新しいデバイスカメラが見つかりません")
+            return
         }
-    }
-    // 写真をフォトライブラリに保存した後に呼び出されるコールバックメソッド
-    @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
-        if let error = error {
-            // 保存に失敗した場合の処理
-            print("Error saving photo: \(error.localizedDescription)")
-        } else {
-            // 保存に成功した場合の処理
-            print("Successfully saved photo to library")
-            // 必要に応じて、ここでViewModelの更新メソッドを呼び出す
+        // 新しい入力をセッションに追加
+        do {
+            let newInput = try AVCaptureDeviceInput(device: newDevice)
+            if session.canAddInput(newInput){
+                session.addInput(newInput)
+            } else {
+                print("新しいセッションを追加しません")
+            }
+        } catch {
+            print("新しい入力の設定に失敗しました:\(error)")
+            session.commitConfiguration()
+            return
         }
+        // 新しい設定をコミット
+        session.commitConfiguration()
     }
+    
     // ズームレベル
     func setZoomLevel(_ zoomFactor: CGFloat) {
         // カメラにデバイスがない場合は中止
@@ -293,101 +308,124 @@ class CameraViewModel: NSObject,ObservableObject,AVCapturePhotoCaptureDelegate {
         // デバイスがサポートする最大ズームファクターと5.0のうち、小さい方を返す
         return min(camera.activeFormat.videoMaxZoomFactor, 5.0)
     }
+    
     // 写真を撮影する
     // 写真を無音で実装
     func takePhoto() {
         // 撮影する写真に関する特定の設定（例えばフラッシュの使用、HDRの有効化など）を指定
         let settings = AVCapturePhotoSettings()
         // 設定したsettingsを使用して写真を撮影
+        
         photoOutput.capturePhoto(with: settings, delegate: self)
+        
+        
     }
     
-    // カメラの内側、外側交換
-    func switchCamera(){
-        // セッションの設定を開始
-        session.beginConfiguration()
-        // 現在のカメラを入力を習得し、削除
-        guard let currentInput = session.inputs.first as? AVCaptureDeviceInput else {return}
-        session.removeInput(currentInput)
+    // 写真が撮影され、処理が完了すると呼び出されます
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,error: Error?) {
+        // 撮影された写真から画像データを取り出します
+        guard let imageData = photo.fileDataRepresentation() else { return }
         
-        // 新しいカメラデバイスを設定
-        let newCameraPosition: AVCaptureDevice.Position = currentInput.device.position == .back ? .front : .back
-        guard let newDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: newCameraPosition) else {
-            print("新しいデバイスカメラが見つかりません")
-            return
+        // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
+        if let image = UIImage(data: imageData) {
+            photoModel.saveImageToPhotoLibrary(image: image)
+        } else {
+            print("失敗しました")
         }
-        // 新しい入力をセッションに追加
-        do {
-            let newInput = try AVCaptureDeviceInput(device: newDevice)
-            if session.canAddInput(newInput){
-                session.addInput(newInput)
-            } else {
-                print("新しいセッションを追加しません")
-            }
-        } catch {
-            print("新しい入力の設定に失敗しました:\(error)")
-            session.commitConfiguration()
-            return
-        }
-        // 新しい設定をコミット
-        session.commitConfiguration()
     }
+    func loadLastPhoto() {
+        photoModel.loadLastSavedPhoto { [weak self] image in
+            DispatchQueue.main.async {
+                self?.lastSavedPhoto = image
+            }
+        }
+    }
+
+    
+}
+
+// 写真のデータ
+class PhotoModel{
+    // 最後の写真を表示するための値
+    var lastPhoto: UIImage?
+    // 今まで撮った写真をまとめて表示させるため
+    var photos: [UIImage] = []
+    // 最新の撮影写真のPHAsset
+    var lastAsset: PHAsset?
+    // ラストイメージ
+    var lastSavedPhoto: UIImage?
+    
+    var fetchedPhotos: [PHAsset] = []
+    
+    // 写真をフォトライブラリに保存した後に呼び出されるコールバックメソッド
+    @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
+        if let error = error {
+            // 保存に失敗した場合の処理
+            print("Error saving photo: \(error.localizedDescription)")
+        } else {
+            // 保存に成功した場合の処理
+            print("Successfully saved photo to library")
+            // 必要に応じて、ここでViewModelの更新メソッドを呼び出す
+        }
+    }
+    
     func saveImageToPhotoLibrary(image: UIImage?) {
         guard let image = image else { return }
         // 画像の保存処理...
         PHPhotoLibrary.shared().performChanges({
             PHAssetChangeRequest.creationRequestForAsset(from: image)
-        }) { success, error in
+        }) { [weak self] success, error in
             DispatchQueue.main.async {
                 if let error = error {
                     print("Error saving photo to library: \(error.localizedDescription)")
                     return
                 }
                 if success {
-                    self.loadLastSavedPhoto() // 最新の写真をロード
+                    // 最新の写真をロードするためにコールバックを使用
+                    self?.loadLastSavedPhoto { newImage in
+                        // ここで何か処理を行う場合はここに記述します。
+                        // 例えば、UIの更新や、新しくロードされた画像を使った処理など。
+                        // この例では、新しくロードされた画像を使用していないため、
+                        // 実際にはコールバック内で特に何も行わないかもしれません。
+                    }
                 }
             }
         }
     }
-    func loadLastSavedPhoto() {
+
+    func loadLastSavedPhoto(completion: @escaping (UIImage?) -> Void) {
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
         
         guard let lastAsset = fetchResult.firstObject else {
-            self.lastSavedPhoto = nil
+            completion(nil) // 画像が見つからない場合は nil を返します。
             return
         }
         
         let options = PHImageRequestOptions()
         options.version = .original
         options.deliveryMode = .highQualityFormat
-        
         options.isSynchronous = false
         options.deliveryMode = .highQualityFormat
         options.isNetworkAccessAllowed = true // iCloudから画像をダウンロードすることを許可します。
         
         let manager = PHImageManager.default()
         let targetSize = CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-        manager.requestImage(for: lastAsset, targetSize: targetSize, contentMode: .aspectFit, options: options) { image, info in
+        manager.requestImage(for: lastAsset, targetSize: targetSize, contentMode: .aspectFit, options: options) { (image, info) in
             DispatchQueue.main.async {
-                guard let info = info else { return }
-                
-                if let isDegraded = info[PHImageResultIsDegradedKey as NSString] as? Bool, isDegraded {
+                if let isDegraded = info?[PHImageResultIsDegradedKey as NSString] as? Bool, isDegraded {
                     // Degraded imageは無視します。
                     return
                 }
                 
-                if let error = info[PHImageErrorKey as NSString] as? Error {
+                if let error = info?[PHImageErrorKey as NSString] as? Error {
                     print("Error loading image: \(error)")
+                    completion(nil) // エラーが発生した場合は nil を返します。
                     return
                 }
                 
-                if let image = image {
-                    self.lastSavedPhoto = image
-                    print("画像のロードに成功しました。")
-                    return
-                }
+                completion(image) // 成功した場合は画像をコールバック経由で返します。
             }
         }
     }
@@ -396,8 +434,6 @@ class CameraViewModel: NSObject,ObservableObject,AVCapturePhotoCaptureDelegate {
 class SharedPhotoData: ObservableObject {
     @Published var lastAsset: PHAsset?
 }
-
-
 
 // SwiftUIでカメラプレビューを表示するため
 struct CameraPreview: UIViewControllerRepresentable {
