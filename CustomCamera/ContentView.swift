@@ -14,8 +14,6 @@ struct ContentView: View {
     // プロパティが変更されるとビューを自動的に更新
     @ObservedObject private var cameraviewmodel = CameraViewModel()
     
-    
-    
     @State private var showingPhotoLibrary = false
     // スクロールで必要
     // ズームレベルを管理する変数
@@ -30,16 +28,9 @@ struct ContentView: View {
             VStack {
                 // カメラのビュー
                 // trueの場合CameraPreviewビューを表示
-                if cameraviewmodel.isCameraReady {
-                    CameraPreview(session: cameraviewmodel.session)
-                        .edgesIgnoringSafeArea(.all)
-                } else {
-                    Color.black.ignoresSafeArea(.all)
-                }
+                cameraviewmodel.cameraView
                 
                 Spacer()
-                
-                
                 
                 VStack{
                     
@@ -168,7 +159,7 @@ class CameraViewModel: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate 
     @Published private(set) var session = AVCaptureSession()
     
     @Published private var photoModel = PhotoModel()
-    @Published var lastSavedPhoto: UIImage?
+    @Published var lastSavedPhoto: UIImage? 
     
     override init() {
         super.init()
@@ -340,8 +331,14 @@ class CameraViewModel: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate 
             }
         }
     }
-
-    
+    // カメラの設定の準備
+    var cameraView: AnyView {
+        if isCameraReady {
+            return AnyView(CameraPreview(session: session).edgesIgnoringSafeArea(.all))
+        } else {
+            return AnyView(Color.black.ignoresSafeArea(.all))
+        }
+    }
 }
 
 // 写真のデータ
@@ -371,27 +368,36 @@ class PhotoModel{
     
     func saveImageToPhotoLibrary(image: UIImage?) {
         guard let image = image else { return }
-        // 画像の保存処理...
+        
         PHPhotoLibrary.shared().performChanges({
             PHAssetChangeRequest.creationRequestForAsset(from: image)
         }) { [weak self] success, error in
             DispatchQueue.main.async {
-                if let error = error {
-                    print("Error saving photo to library: \(error.localizedDescription)")
-                    return
-                }
                 if success {
-                    // 最新の写真をロードするためにコールバックを使用
+                    // 画像の保存に成功したら、最新の写真をロード
                     self?.loadLastSavedPhoto { newImage in
-                        // ここで何か処理を行う場合はここに記述します。
-                        // 例えば、UIの更新や、新しくロードされた画像を使った処理など。
-                        // この例では、新しくロードされた画像を使用していないため、
-                        // 実際にはコールバック内で特に何も行わないかもしれません。
+                        // ここでロードされた画像を使って具体的な処理を行う
+                        // 例: UIの更新や、画像を使用した後続の処理
+                        DispatchQueue.main.async {
+                            if let loadedImage = newImage {
+                                print("ロードされる前の lastSavedPhoto: \(String(describing: self?.lastSavedPhoto))")
+                                print("ロードされた画像: \(loadedImage), サイズ: \(loadedImage.size)")
+                                self?.lastSavedPhoto = loadedImage
+                                print("ロードされた後の lastSavedPhoto: \(String(describing: self?.lastSavedPhoto))")
+                            }
+
+                        }
                     }
+                } else {
+                    // エラーハンドリングをここに記述
+                    print("Error saving photo to library: \(error?.localizedDescription ?? "Unknown error")")
                 }
             }
         }
     }
+
+
+    
 
     func loadLastSavedPhoto(completion: @escaping (UIImage?) -> Void) {
         let fetchOptions = PHFetchOptions()
@@ -424,7 +430,7 @@ class PhotoModel{
                     completion(nil) // エラーが発生した場合は nil を返します。
                     return
                 }
-                
+                print("こんにちわ")
                 completion(image) // 成功した場合は画像をコールバック経由で返します。
             }
         }
