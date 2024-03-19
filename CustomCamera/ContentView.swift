@@ -163,8 +163,12 @@ class CameraViewModel: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate 
     
     override init() {
         super.init()
-        self.lastSavedPhoto = photoModel.lastSavedPhoto
-        
+        // PhotoModelのlastSavedPhotoが更新されたときにUIを更新するコールバックを設定する
+        photoModel.photoUpdatedCallback = { [weak self] image in
+            DispatchQueue.main.async {
+                self?.lastSavedPhoto = image
+            }
+        }
     }
     
     // 写真を撮影するための出力
@@ -320,14 +324,23 @@ class CameraViewModel: NSObject,ObservableObject, AVCapturePhotoCaptureDelegate 
         // UIImage(data: imageData)を使用して取得した画像データからUIImageオブジェクトを作成します
         if let image = UIImage(data: imageData) {
             photoModel.saveImageToPhotoLibrary(image: image)
+            // 最後の写真を更新する
+            photoModel.loadLastSavedPhoto { [weak self] image in
+                DispatchQueue.main.async {
+                    self?.lastSavedPhoto = image
+                }
+            }
         } else {
             print("失敗しました")
         }
     }
+
     func loadLastPhoto() {
         photoModel.loadLastSavedPhoto { [weak self] image in
             DispatchQueue.main.async {
+                print("更新します")
                 self?.lastSavedPhoto = image
+                print("lastSavedPhoto updated: \(String(describing: self?.lastSavedPhoto))")
             }
         }
     }
@@ -349,10 +362,21 @@ class PhotoModel{
     var photos: [UIImage] = []
     // 最新の撮影写真のPHAsset
     var lastAsset: PHAsset?
+    
     // ラストイメージ
-    var lastSavedPhoto: UIImage?
+    var lastSavedPhoto: UIImage? {
+        didSet {
+            // lastSavedPhotoが更新されたことをCameraViewModelに通知する
+            DispatchQueue.main.async {
+                self.photoUpdatedCallback?(self.lastSavedPhoto)
+            }
+        }
+    }
     
     var fetchedPhotos: [PHAsset] = []
+    
+    // 写真が更新されたときに呼び出されるコールバック
+    var photoUpdatedCallback: ((UIImage?) -> Void)?
     
     // 写真をフォトライブラリに保存した後に呼び出されるコールバックメソッド
     @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
@@ -395,10 +419,6 @@ class PhotoModel{
             }
         }
     }
-
-
-    
-
     func loadLastSavedPhoto(completion: @escaping (UIImage?) -> Void) {
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
